@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Producción - Detalle Personalizado</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --accent: #dbeafe;
+            --save: #e91e63;
+            --success: #218838;
+            --warning: #f59e0b;
+        }
+
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .app-card { background: white; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 15px; box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-size: 0.7rem; font-weight: 800; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: white; transition: background 0.3s; }
+
+        .btns-main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { padding: 14px; border: none; border-radius: 10px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-cam { background: var(--primary); }
+        .btn-manual { background: #6b7280; }
+
+        .save-bar-compact { 
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; 
+            background: #fff9c4; padding: 12px; border-radius: 10px; border: 2px solid #fbc02d; margin-bottom: 15px; align-items: end;
+        }
+        .btn-save { background: var(--save); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 45px; }
+        .btn-count-mode { background: var(--warning); }
+
+        .inv-item { background: var(--card); border-radius: 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; overflow: hidden; }
+        .inv-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .inv-details { max-height: 0; background: #f9fafb; overflow: hidden; transition: max-height 0.3s ease; }
+        .inv-item.open .inv-details { max-height: 2000px; border-top: 1px solid #eee; }
+
+        .detail-row { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; }
+        .detail-line { display: flex; justify-content: space-between; align-items: center; }
+        
+        .badge-total { color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; }
+        .weight-card-top { background: #1e293b; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+        .weight-card-top span { font-size: 2rem; font-weight: bold; color: #4ade80; display: block; }
+
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .scan-status { font-size: 11px; color: var(--success); font-weight: bold; text-align: center; margin-bottom: 5px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <header>
+        <h2 style="margin:0; font-size: 1.1rem;">🚀 Producción & Pesos</h2>
+        <button onclick="descargarExcel()" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold;">EXCEL</button>
+    </header>
+
+    <div class="config-grid">
+        <div class="field">
+            <label>Máquina / Modo</label>
+            <select id="filtroMaquina" onchange="actualizarVista()">
+                <option value="TODAS">Historial Completo</option>
+                <option value="CONTAR">📊 MODO CONTAR</option>
+                <option value="Máquina 6">Máquina 6</option>
+                <option value="Máquina 7">Máquina 7</option>
+                <option value="Máquina 8">Máquina 8</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Origen</label>
+            <select id="origenDato">
+                <option value="México">México</option>
+                <option value="Importación">Importación</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="btns-main">
+        <button class="btn btn-cam" onclick="toggleCamara()">📷 CÁMARA</button>
+        <button class="btn btn-manual" onclick="toggleManual()">✏️ MANUAL</button>
+    </div>
+
+    <div id="inputManualArea" style="display:none; margin-bottom:15px;">
+        <input type="text" id="serialTexto" placeholder="Serial de 72 caract." oninput="manejarEntradaManual(this.value)">
+    </div>
+
+    <div id="reader"></div>
+    <div id="statusScan" class="scan-status">¡Serial cargado! Verifique la cantidad abajo.</div>
+
+    <div class="save-bar-compact">
+        <div class="field" style="margin-bottom:0">
+            <label>Cantidad (Pzs)</label>
+            <input type="number" id="cantidadRealizada" value="0">
+        </div>
+        <button id="btnAccionPrincipal" class="btn-save" onclick="procesarGuardado()">💾 GUARDAR</button>
+    </div>
+
+    <div id="contenedorPrincipal"></div>
+
+    <button onclick="limpiarTodaLaMemoria()" style="background:none; border:none; color:#ef4444; font-size:10px; text-decoration:underline; width:100%; margin-top:20px; cursor:pointer;">Borrar Historial Permanente</button>
+</div>
+
+<script>
+    let registrosPermanentes = [];
+    let registrosTemporales = [];
+    let html5QrScanner = null;
+    let ultimoQrEscaneado = "";
+
+    window.onload = () => {
+        const memoria = localStorage.getItem('datos_prod_v6');
+        if (memoria) {
+            registrosPermanentes = JSON.parse(memoria);
+        }
+        actualizarVista();
+    };
+
+    // FUNCIÓN ACTUALIZADA: Carga el Total Quality por defecto
+    function autoCargarDatos(serial) {
+        if (serial.length >= 50) {
+            // Extrae Total Quality (posiciones 47 a 50)
+            const tq = parseInt(serial.substring(47, 50));
+            if (!isNaN(tq)) {
+                const inputCant = document.getElementById("cantidadRealizada");
+                inputCant.value = tq; 
+                
+                // Efecto visual de carga exitosa
+                inputCant.style.backgroundColor = "#e8f5e9";
+                setTimeout(() => { inputCant.style.backgroundColor = "white"; }, 600);
+                
+                mostrarFeedback();
+            }
+        }
+    }
+
+    function manejarEntradaManual(val) {
+        if (val.length >= 70) {
+            ultimoQrEscaneado = val;
+            autoCargarDatos(val);
+        }
+    }
+
+    function mostrarFeedback() {
+        const status = document.getElementById("statusScan");
+        status.style.display = "block";
+        if(navigator.vibrate) navigator.vibrate(50);
+        setTimeout(() => { status.style.display = "none"; }, 3000);
+    }
+
+    function parsearSerial(s, maquina, origen, cant) {
+        const pesoUnitario = parseFloat(s.substring(64, 71)) || 0;
+        const cantidad = parseInt(cant) || 0;
+        return {
+            "Maquina": maquina,
+            "Origen": origen,
+            "Cant_Realizada": cantidad,
+            "WorkOrder": s.substring(0, 5).trim(),
+            "Core_Number": s.substring(5, 18).trim(),
+            "Total_Quality": s.substring(47, 50).trim(),
+            "Weight_Normal": pesoUnitario,
+            "Peso_Total": (pesoUnitario * cantidad).toFixed(2),
+            "Fecha": new Date().toLocaleString()
+        };
+    }
+
+    function procesarGuardado() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const serialManual = document.getElementById("serialTexto").value.trim();
+        const serial = ultimoQrEscaneado || serialManual;
+        
+        // Captura la cantidad que esté en el input (sea la auto-cargada o la editada)
+        const cantidadEditada = document.getElementById("cantidadRealizada").value;
+
+        if (serial.length < 50) {
+            alert("Error: Serial no detectado o incompleto.");
+            return;
+        }
+        
+        const obj = parsearSerial(serial, modo, document.getElementById("origenDato").value, cantidadEditada);
+
+        if (modo === "CONTAR") {
+            registrosTemporales.unshift(obj);
+        } else {
+            if(modo === "TODAS") {
+                alert("Por favor, selecciona una Máquina para guardar el registro.");
+                return;
+            }
+            registrosPermanentes.unshift(obj);
+            localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
+        }
+        
+        limpiarInputs();
+        actualizarVista();
+    }
+
+    function limpiarInputs() {
+        ultimoQrEscaneado = "";
+        document.getElementById("serialTexto").value = "";
+        document.getElementById("cantidadRealizada").value = 0;
+    }
+
+    function actualizarVista() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const container = document.getElementById("contenedorPrincipal");
+        const btnAccion = document.getElementById("btnAccionPrincipal");
+        container.innerHTML = "";
+
+        if (modo === "CONTAR") {
+            btnAccion.innerHTML = "➕ SUMAR AL CÁLCULO";
+            btnAccion.className = "btn-save btn-count-mode";
+            renderModoContar(container);
+        } else {
+            btnAccion.innerHTML = "💾 GUARDAR EN HISTORIAL";
+            btnAccion.className = "btn-save";
+            renderModoAgrupado(container, modo);
+        }
+    }
+
+    function renderModoAgrupado(container, filtro) {
+        const datos = filtro === "TODAS" ? registrosPermanentes : registrosPermanentes.filter(r => r.Maquina === filtro);
+        if (datos.length === 0) { container.innerHTML = "<p style='text-align:center;color:#999;'>Sin registros permanentes</p>"; return; }
+
+        const grupos = datos.reduce((acc, r) => {
+            const key = r.Maquina;
+            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
+            acc[key].pzs += parseInt(r.Cant_Realizada);
+            acc[key].peso += parseFloat(r.Peso_Total);
+            acc[key].items.push(r);
+            return acc;
+        }, {});
+
+        Object.keys(grupos).sort().forEach(maq => {
+            container.appendChild(crearTarjetaExpandible(maq, grupos[maq], false));
+        });
+    }
+
+    function renderModoContar(container) {
+        if (registrosTemporales.length === 0) { container.innerHTML = "<p style='text-align:center;color:#999;'>Inicie escaneos para calcular peso</p>"; return; }
+
+        const grupos = registrosTemporales.reduce((acc, r) => {
+            const key = r.WorkOrder;
+            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
+            acc[key].pzs += parseInt(r.Cant_Realizada);
+            acc[key].peso += parseFloat(r.Peso_Total);
+            acc[key].items.push(r);
+            return acc;
+        }, {});
+
+        const totalLbs = Object.values(grupos).reduce((a, b) => a + b.peso, 0).toFixed(2);
+        
+        const topCard = document.createElement("div");
+        topCard.className = "weight-card-top";
+        topCard.innerHTML = `<label>PESO TOTAL REQUERIDO</label><span>${totalLbs} Lbs</span>`;
+        container.appendChild(topCard);
+
+        Object.keys(grupos).forEach(wo => {
+            container.appendChild(crearTarjetaExpandible(wo, grupos[wo], true));
+        });
+    }
+
+    function crearTarjetaExpandible(titulo, data, esModoPeso) {
+        const item = document.createElement("div");
+        const safeId = titulo.replace(/\s/g, '-');
+        item.className = "inv-item";
+        item.id = `group-${safeId}`;
+        
+        item.innerHTML = `
+            <div class="inv-header" onclick="toggleItem('${safeId}')">
+                <div>
+                    <span style="font-weight:bold; font-size:1.1rem">${esModoPeso ? 'WO: ' : ''}${titulo}</span>
+                    <div style="font-size:0.75rem; color:#6b7280">${data.pzs} Pzs totales</div>
+                </div>
+                <span class="badge-total" style="background:${esModoPeso ? 'var(--success)' : 'var(--primary)'}">${data.peso.toFixed(2)} lbs</span>
+            </div>
+            <div class="inv-details">
+                ${data.items.map(r => `
+                    <div class="detail-row">
+                        <div class="detail-line">
+                            <b style="color:var(--primary)">WO: ${r.WorkOrder}</b>
+                            <b style="color:var(--save)"> ${r.Cant_Realizada} pz</b>
+                        </div>
+                        <div class="detail-line" style="font-size:0.75rem; color:#666;">
+                            <span>Core: ${r.Core_Number}</span>
+                            <span> ${r.Peso_Total} lbs</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        return item;
+    }
+
+    function toggleItem(id) {
+        const el = document.getElementById(`group-${id}`);
+        if(el) el.classList.toggle('open');
+    }
+
+    async function toggleCamara() {
+        if (!html5QrScanner) {
+            html5QrScanner = new Html5Qrcode("reader");
+            try {
+                await html5QrScanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => { 
+                    ultimoQrEscaneado = text;
+                    autoCargarDatos(text);
+                });
+            } catch (err) { alert("Error de cámara: " + err); html5QrScanner = null; }
+        } else {
+            await html5QrScanner.stop();
+            html5QrScanner = null;
+            document.getElementById("reader").innerHTML = "";
+        }
+    }
+
+    function toggleManual() {
+        const area = document.getElementById("inputManualArea");
+        area.style.display = area.style.display === "none" ? "block" : "none";
+    }
+
+    function descargarExcel() {
+        if (registrosPermanentes.length === 0) return alert("Nada que exportar.");
+        const ws = XLSX.utils.json_to_sheet(registrosPermanentes);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Produccion");
+        XLSX.writeFile(wb, "Reporte_Produccion.xlsx");
+    }
+
+    function limpiarTodaLaMemoria() {
+        if (confirm("¿Borrar todo el historial?")) {
+            localStorage.removeItem('datos_prod_v6');
+            registrosPermanentes = [];
+            actualizarVista();
+        }
+    }
+</script>
+</body>
+</html>
