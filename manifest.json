@@ -1,0 +1,16 @@
+{
+  "short_name": "Producción",
+  "name": "SUMWIC Producción",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6216/6216163.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#f3f4f6"
+}
