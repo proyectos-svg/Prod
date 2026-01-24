@@ -3,79 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Producción - Reporte SUMWIC</title>
+    <title>Producción SUMWIC - Interno</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f3f4f6;
-            --card: #ffffff;
-            --text: #1f2937;
-            --accent: #dbeafe;
-            --save: #e91e63;
-            --success: #218838;
-            --warning: #f59e0b;
-            --danger: #dc2626;
-        }
-
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .app-card { background: white; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 15px; box-sizing: border-box; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .field { margin-bottom: 12px; }
-        label { display: block; font-size: 0.7rem; font-weight: 800; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
-        select, input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: white; transition: background 0.3s; }
-
-        .btns-main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .btn { padding: 14px; border: none; border-radius: 10px; font-weight: bold; color: white; cursor: pointer; }
-        .btn-cam { background: var(--primary); }
-        .btn-manual { background: #6b7280; }
-
-        .save-bar-compact { 
-            display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; 
-            background: #fff9c4; padding: 12px; border-radius: 10px; border: 2px solid #fbc02d; margin-bottom: 15px; align-items: end;
-        }
-        .btn-save { background: var(--save); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 45px; }
-        .btn-count-mode { background: var(--warning); }
-
-        .inv-item { background: var(--card); border-radius: 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; overflow: hidden; }
-        .inv-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .inv-details { max-height: 0; background: #f9fafb; overflow: hidden; transition: max-height 0.3s ease; }
-        .inv-item.open .inv-details { max-height: 2000px; border-top: 1px solid #eee; }
-
-        .detail-row { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; position: relative; padding-right: 50px; }
-        .detail-line { display: flex; justify-content: space-between; align-items: center; }
-        
-        .btn-delete-row {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            background: #fee2e2; color: var(--danger); border: none; width: 32px; height: 32px;
-            border-radius: 50%; font-weight: bold; font-size: 16px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .badge-total { color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; }
-        .weight-card-top { background: #1e293b; color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
-        .weight-card-top span { font-size: 2rem; font-weight: bold; color: #4ade80; display: block; }
-
-        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
-        .scan-status { font-size: 11px; color: var(--success); font-weight: bold; text-align: center; margin-bottom: 5px; display: none; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="app-card">
     <header>
-        <h2 style="margin:0; font-size: 1.1rem;">🚀 Producción & Pesos</h2>
-        <button onclick="descargarExcelFormatoImagen()" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold;">EXCEL (M6/M7/M8)</button>
+        <h2 style="margin:0; font-size: 1.1rem;">🚀 Producción SUMWIC</h2>
+        <button onclick="descargarExcelFormatoImagen()" class="btn-excel">EXCEL</button>
     </header>
 
     <div class="config-grid">
         <div class="field">
-            <label>Máquina / Modo</label>
+            <label>Máquina</label>
             <select id="filtroMaquina" onchange="actualizarVista()">
                 <option value="TODAS">Historial Completo</option>
                 <option value="CONTAR">📊 MODO CONTAR</option>
@@ -99,330 +42,23 @@
     </div>
 
     <div id="inputManualArea" style="display:none; margin-bottom:15px;">
-        <input type="text" id="serialTexto" placeholder="Serial de 72 caract." oninput="manejarEntradaManual(this.value)">
+        <input type="text" id="serialTexto" placeholder="Pegue el serial aquí..." oninput="manejarEntradaManual(this.value)">
     </div>
 
     <div id="reader"></div>
-    <div id="statusScan" class="scan-status">¡Serial cargado! Verifique la cantidad abajo.</div>
+    <div id="statusScan" class="scan-status">✅ SERIAL DETECTADO</div>
 
     <div class="save-bar-compact">
         <div class="field" style="margin-bottom:0">
-            <label>Cantidad (Pzs)</label>
-            <input type="number" id="cantidadRealizada" value="0">
+            <label>Cant. (Pzs)</label>
+            <input type="number" id="cantidadEditable" value="0">
         </div>
         <button id="btnAccionPrincipal" class="btn-save" onclick="procesarGuardado()">💾 GUARDAR</button>
     </div>
 
     <div id="contenedorPrincipal"></div>
-
-    <button onclick="limpiarTodaLaMemoria()" style="background:none; border:none; color:#ef4444; font-size:10px; text-decoration:underline; width:100%; margin-top:20px; cursor:pointer;">Borrar Historial Permanente</button>
 </div>
 
-<script>
-    let registrosPermanentes = [];
-    let registrosTemporales = [];
-    let html5QrScanner = null;
-    let ultimoQrEscaneado = "";
-
-    window.onload = () => {
-        const memoria = localStorage.getItem('datos_prod_v6');
-        if (memoria) {
-            registrosPermanentes = JSON.parse(memoria);
-            registrosPermanentes.forEach((r, idx) => { if (!r.id) r.id = Date.now() + idx; });
-        }
-        actualizarVista();
-    };
-
-    // --- FUNCIONES DE CÁMARA Y PROCESAMIENTO ---
-    async function toggleCamara() {
-        if (!html5QrScanner) {
-            html5QrScanner = new Html5Qrcode("reader");
-            try {
-                await html5QrScanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => { 
-                    if(text.length > 40) {
-                        ultimoQrEscaneado = text;
-                        autoCargarDatos(text);
-                        setTimeout(() => { if(html5QrScanner) toggleCamara(); }, 500);
-                    }
-                });
-            } catch (err) { alert("Error de cámara: " + err); html5QrScanner = null; }
-        } else {
-            await html5QrScanner.stop();
-            html5QrScanner = null;
-            document.getElementById("reader").innerHTML = "";
-        }
-    }
-
-    function toggleManual() {
-        const area = document.getElementById("inputManualArea");
-        area.style.display = area.style.display === "none" ? "block" : "none";
-    }
-
-    function autoCargarDatos(serial) {
-        if (serial.length >= 50) {
-            const tq = parseInt(serial.substring(47, 50));
-            if (!isNaN(tq)) {
-                const inputCant = document.getElementById("cantidadRealizada");
-                inputCant.value = tq; 
-                inputCant.style.backgroundColor = "#e8f5e9";
-                setTimeout(() => { inputCant.style.backgroundColor = "white"; }, 600);
-                mostrarFeedback();
-            }
-        }
-    }
-
-    function manejarEntradaManual(val) {
-        if (val.length >= 70) {
-            ultimoQrEscaneado = val;
-            autoCargarDatos(val);
-        }
-    }
-
-    function mostrarFeedback() {
-        const status = document.getElementById("statusScan");
-        status.style.display = "block";
-        if(navigator.vibrate) navigator.vibrate(50);
-        setTimeout(() => { status.style.display = "none"; }, 3000);
-    }
-
-    function parsearSerial(s, maquina, origen, cant) {
-        const pesoUnitario = parseFloat(s.substring(64, 71)) || 0;
-        const cantidad = parseInt(cant) || 0;
-        return {
-            "id": Date.now(),
-            "Maquina": maquina,
-            "Origen": origen,
-            "Cant_Realizada": cantidad,
-            "WorkOrder": s.substring(0, 5).trim(),
-            "Core_Number": s.substring(5, 18).trim(),
-            "Total_Quality": s.substring(47, 50).trim(),
-            "Weight_Normal": pesoUnitario,
-            "Peso_Total": (pesoUnitario * cantidad).toFixed(2),
-            "Fecha": new Date().toLocaleString()
-        };
-    }
-
-    function procesarGuardado() {
-        const modo = document.getElementById("filtroMaquina").value;
-        const serialManual = document.getElementById("serialTexto").value.trim();
-        const serial = ultimoQrEscaneado || serialManual;
-        const cantidadEditada = document.getElementById("cantidadRealizada").value;
-
-        if (serial.length < 50) return alert("Error: Serial no detectado o incompleto.");
-        
-        const obj = parsearSerial(serial, modo, document.getElementById("origenDato").value, cantidadEditada);
-
-        if (modo === "CONTAR") {
-            registrosTemporales.unshift(obj);
-        } else {
-            if(modo === "TODAS") return alert("Selecciona una Máquina específica.");
-            registrosPermanentes.unshift(obj);
-            localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
-        }
-        
-        limpiarInputs();
-        actualizarVista();
-    }
-
-    function limpiarInputs() {
-        ultimoQrEscaneado = "";
-        document.getElementById("serialTexto").value = "";
-        document.getElementById("cantidadRealizada").value = 0;
-    }
-
-    function borrarRegistro(id) {
-        if(!confirm("¿Eliminar este registro específico?")) return;
-        registrosPermanentes = registrosPermanentes.filter(r => r.id !== id);
-        localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
-        registrosTemporales = registrosTemporales.filter(r => r.id !== id);
-        actualizarVista();
-    }
-
-    function limpiarTodaLaMemoria() {
-        if (confirm("¿Borrar TODO el historial?")) {
-            localStorage.removeItem('datos_prod_v6');
-            registrosPermanentes = [];
-            actualizarVista();
-        }
-    }
-
-    // --- VISTAS EN PANTALLA ---
-    function actualizarVista() {
-        const modo = document.getElementById("filtroMaquina").value;
-        const container = document.getElementById("contenedorPrincipal");
-        const btnAccion = document.getElementById("btnAccionPrincipal");
-        container.innerHTML = "";
-
-        if (modo === "CONTAR") {
-            btnAccion.innerHTML = "➕ SUMAR";
-            btnAccion.className = "btn-save btn-count-mode";
-            renderModoContar(container);
-        } else {
-            btnAccion.innerHTML = "💾 GUARDAR";
-            btnAccion.className = "btn-save";
-            renderModoAgrupado(container, modo);
-        }
-    }
-
-    function renderModoAgrupado(container, filtro) {
-        const datos = filtro === "TODAS" ? registrosPermanentes : registrosPermanentes.filter(r => r.Maquina === filtro);
-        if (datos.length === 0) { container.innerHTML = "<p style='text-align:center;color:#999;'>Sin registros</p>"; return; }
-
-        const grupos = datos.reduce((acc, r) => {
-            const key = r.Maquina;
-            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
-            acc[key].pzs += parseInt(r.Cant_Realizada);
-            acc[key].peso += parseFloat(r.Peso_Total);
-            acc[key].items.push(r);
-            return acc;
-        }, {});
-
-        Object.keys(grupos).sort().forEach(maq => {
-            container.appendChild(crearTarjetaExpandible(maq, grupos[maq], false));
-        });
-    }
-
-    function renderModoContar(container) {
-        if (registrosTemporales.length === 0) { container.innerHTML = "<p style='text-align:center;color:#999;'>Escanea para calcular</p>"; return; }
-        const grupos = registrosTemporales.reduce((acc, r) => {
-            const key = r.WorkOrder;
-            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
-            acc[key].pzs += parseInt(r.Cant_Realizada);
-            acc[key].peso += parseFloat(r.Peso_Total);
-            acc[key].items.push(r);
-            return acc;
-        }, {});
-        const totalLbs = Object.values(grupos).reduce((a, b) => a + b.peso, 0).toFixed(2);
-        container.innerHTML = `<div class="weight-card-top"><label>TOTAL</label><span>${totalLbs} Lbs</span></div>`;
-        Object.keys(grupos).forEach(wo => container.appendChild(crearTarjetaExpandible(wo, grupos[wo], true)));
-    }
-
-    function crearTarjetaExpandible(titulo, data, esModoPeso) {
-        const safeId = titulo.replace(/\s/g, '-');
-        const itemsHtml = data.items.map(r => `
-            <div class="detail-row">
-                <div class="detail-line">
-                    <b style="color:var(--primary)">WO: ${r.WorkOrder}</b>
-                    <b style="color:var(--save)"> ${r.Cant_Realizada} pz</b>
-                </div>
-                <div class="detail-line" style="font-size:0.75rem; color:#666;">
-                    <span>Core: ${r.Core_Number}</span>
-                    <span> ${r.Peso_Total} lbs</span>
-                </div>
-                <button class="btn-delete-row" onclick="event.stopPropagation(); borrarRegistro(${r.id})">✕</button>
-            </div>
-        `).join('');
-
-        const div = document.createElement("div");
-        div.className = "inv-item";
-        div.id = `group-${safeId}`;
-        div.innerHTML = `
-            <div class="inv-header" onclick="document.getElementById('group-${safeId}').classList.toggle('open')">
-                <div>
-                    <span style="font-weight:bold; font-size:1.1rem">${esModoPeso ? 'WO: ' : ''}${titulo}</span>
-                    <div style="font-size:0.75rem; color:#6b7280">${data.pzs} Pzs</div>
-                </div>
-                <span class="badge-total" style="background:${esModoPeso?'var(--success)':'var(--primary)'}">${data.peso.toFixed(2)} lbs</span>
-            </div>
-            <div class="inv-details">${itemsHtml}</div>
-        `;
-        return div;
-    }
-
-    // --- NUEVA LÓGICA DE EXCEL (FORMATO IMAGEN) ---
-    function descargarExcelFormatoImagen() {
-        if (registrosPermanentes.length === 0) return alert("No hay datos para exportar.");
-
-        // Matriz base del Excel (Array of Arrays)
-        let ws_data = [];
-        let merges = [];
-        
-        // 1. Encabezado General
-        ws_data.push(["REPORTE DE PRODUCCION SUMWIC"]); // Fila 0
-        ws_data.push(["", "", "", "", "", "FECHA:", new Date().toLocaleDateString()]); // Fila 1
-        ws_data.push([]); // Espacio
-
-        merges.push({ s: {r:0, c:0}, e: {r:0, c:7} }); // Merge del título
-
-        // Definimos las máquinas a iterar tal cual las nombra el sistema vs la imagen
-        const maquinasMap = [
-            { sys: "Máquina 6", label: "M6" },
-            { sys: "Máquina 7", label: "M7" },
-            { sys: "Máquina 8", label: "M8" }
-        ];
-
-        maquinasMap.forEach(maq => {
-            // Filtrar datos de esta máquina
-            const datosMaq = registrosPermanentes.filter(r => r.Maquina === maq.sys);
-            
-            // Fila de Nombre de Máquina (Ej: M6)
-            ws_data.push([maq.label]); 
-            
-            // Fila de Encabezados de Columnas (Estilo Imagen)
-            // Columnas: A=Destino, B=NoParte(vacio), C=NoParte(Core), D=WO, E=Acero, F=Cant, G=Peso, H=PesoTotal, I=Terminado
-            ws_data.push(["DESTINO", "No. PARTE", "", "W.O.", "ACERO", "CANT.", "PESO", "PESO TOTAL", "TERMINADO"]);
-            
-            // Fila Sub-encabezado No Parte
-            ws_data.push(["", "0000-", "000000", "", "", "", "", "", ""]);
-
-            // Calcular merges para los encabezados de esta sección
-            let startRow = ws_data.length - 2; // La fila de "DESTINO..."
-            // Merge "No. PARTE" (ocupa col B y C)
-            merges.push({ s: {r:startRow, c:1}, e: {r:startRow, c:2} });
-
-            let totalPz = 0;
-            let totalPeso = 0;
-
-            // Rellenar datos
-            datosMaq.forEach(r => {
-                ws_data.push([
-                    r.Origen,            // DESTINO
-                    "",                  // 0000- (Vacío o prefijo si existiera)
-                    r.Core_Number,       // 000000 (Core Number aquí)
-                    r.WorkOrder,         // W.O.
-                    "",                  // ACERO (No tenemos este dato, vacío)
-                    parseInt(r.Cant_Realizada), // CANT.
-                    parseFloat(r.Weight_Normal),// PESO
-                    parseFloat(r.Peso_Total),   // PESO TOTAL
-                    ""                   // TERMINADO (Check manual)
-                ]);
-                totalPz += parseInt(r.Cant_Realizada);
-                totalPeso += parseFloat(r.Peso_Total);
-            });
-
-            // Filas vacías si no hay datos, para mantener estructura visual (opcional, aquí solo ponemos datos reales)
-            
-            // Fila de TOTALES al pie de la sección
-            ws_data.push(["", "", "", "TOTAL PZ", totalPz, "TOTAL", totalPeso, "", ""]);
-            
-            // Espacio entre máquinas
-            ws_data.push([]); 
-            ws_data.push([]); 
-        });
-
-        // Crear hoja y libro
-        const ws = XLSX.utils.aoa_to_sheet(ws_data);
-        
-        // Aplicar los merges
-        ws['!merges'] = merges;
-
-        // Ajustar anchos de columna (visual)
-        ws['!cols'] = [
-            { wch: 12 }, // Destino
-            { wch: 8 },  // 0000-
-            { wch: 15 }, // 000000
-            { wch: 10 }, // WO
-            { wch: 8 },  // Acero
-            { wch: 8 },  // Cant
-            { wch: 10 }, // Peso
-            { wch: 12 }, // Peso Total
-            { wch: 10 }  // Terminado
-        ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Reporte SUMWIC");
-        XLSX.writeFile(wb, "Reporte_Produccion_Formato.xlsx");
-    }
-</script>
+<script src="script.js"></script>
 </body>
 </html>
