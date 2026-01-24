@@ -3,25 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Producción SUMWIC - Interno</title>
+    <title>Producción SUMWIC - Sistema Unificado</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        :root {
+            --primary: #2563eb; --bg: #f3f4f6; --card: #ffffff;
+            --text: #1f2937; --save: #e91e63; --success: #218838; --warning: #f59e0b;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .app-card { background: white; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 15px; box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-size: 0.7rem; font-weight: 800; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: white; }
+        .btns-main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { padding: 14px; border: none; border-radius: 10px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-cam { background: var(--primary); }
+        .btn-manual { background: #6b7280; }
+        
+        .save-bar-compact { 
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; 
+            background: #fff9c4; padding: 15px; border-radius: 10px; border: 2px solid #fbc02d; margin-bottom: 15px; align-items: end; 
+        }
+        .btn-save { background: var(--save); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 48px; }
+
+        /* Estilos de expansión corregidos */
+        .inv-item { background: var(--card); border-radius: 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; overflow: hidden; }
+        .inv-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .inv-details { max-height: 0; background: #f9fafb; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .inv-item.open .inv-details { max-height: 2000px; border-top: 1px solid #eee; }
+
+        .detail-row { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; position: relative; padding-right: 50px; }
+        .detail-line { display: flex; justify-content: space-between; align-items: center; }
+        .btn-delete-row { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #fee2e2; color: #dc2626; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+        .badge-total { color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .scan-status { font-size: 11px; color: var(--success); font-weight: bold; text-align: center; margin-bottom: 8px; display: none; }
+        .weight-card-top { background: #1e293b; color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+        .weight-card-top span { font-size: 1.8rem; font-weight: bold; color: #4ade80; display: block; }
+    </style>
 </head>
 <body>
 
 <div class="app-card">
     <header>
         <h2 style="margin:0; font-size: 1.1rem;">🚀 Producción SUMWIC</h2>
-        <button onclick="descargarExcelFormatoImagen()" class="btn-excel">EXCEL</button>
+        <button onclick="descargarExcelFormatoImagen()" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold;">EXCEL</button>
     </header>
 
     <div class="config-grid">
         <div class="field">
-            <label>Máquina</label>
+            <label>Máquina / Modo</label>
             <select id="filtroMaquina" onchange="actualizarVista()">
-                <option value="TODAS">Historial Completo</option>
-                <option value="CONTAR">📊 MODO CONTAR</option>
+                <option value="TODAS">Historial</option>
+                <option value="CONTAR">📊 MODO PESO</option>
                 <option value="Máquina 6">Máquina 6</option>
                 <option value="Máquina 7">Máquina 7</option>
                 <option value="Máquina 8">Máquina 8</option>
@@ -42,23 +80,218 @@
     </div>
 
     <div id="inputManualArea" style="display:none; margin-bottom:15px;">
-        <input type="text" id="serialTexto" placeholder="Pegue el serial aquí..." oninput="manejarEntradaManual(this.value)">
+        <input type="text" id="serialTexto" placeholder="Pegue serial..." oninput="manejarEntradaManual(this.value)">
     </div>
 
     <div id="reader"></div>
-    <div id="statusScan" class="scan-status">✅ SERIAL DETECTADO</div>
+    <div id="statusScan" class="scan-status">✅ DATOS PRECARGADOS</div>
 
     <div class="save-bar-compact">
         <div class="field" style="margin-bottom:0">
-            <label>Cant. (Pzs)</label>
-            <input type="number" id="cantidadRealizada" value="0">
+            <label>Cant. a Registrar</label>
+            <input type="number" id="cantidadEditable" value="0">
         </div>
-        <button id="btnAccionPrincipal" class="btn-save" onclick="procesarGuardado()">💾 GUARDAR</button>
+        <button id="btnGuardar" class="btn-save" onclick="procesarGuardado()">💾 GUARDAR</button>
     </div>
 
     <div id="contenedorPrincipal"></div>
 </div>
 
-<script src="script.js"></script>
+<script>
+    let registrosPermanentes = [];
+    let registrosTemporales = [];
+    let ultimoQrEscaneado = "";
+    let html5QrScanner = null;
+
+    window.onload = () => {
+        const memoria = localStorage.getItem('datos_prod_v6');
+        if (memoria) registrosPermanentes = JSON.parse(memoria);
+        actualizarVista();
+    };
+
+    // --- LÓGICA DE CAPTURA ---
+    function manejarEntradaManual(val) {
+        if (val.length >= 50) {
+            ultimoQrEscaneado = val;
+            const cantRequerida = parseInt(val.substring(47, 50)) || 0;
+            document.getElementById("cantidadEditable").value = cantRequerida; // Precarga
+            mostrarFeedback();
+        }
+    }
+
+    async function toggleCamara() {
+        if (!html5QrScanner) {
+            html5QrScanner = new Html5Qrcode("reader");
+            await html5QrScanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => { 
+                ultimoQrEscaneado = text;
+                const cantRequerida = parseInt(text.substring(47, 50)) || 0;
+                document.getElementById("cantidadEditable").value = cantRequerida; // Precarga
+                mostrarFeedback();
+                setTimeout(() => { if(html5QrScanner) toggleCamara(); }, 500);
+            });
+        } else {
+            await html5QrScanner.stop(); html5QrScanner = null;
+            document.getElementById("reader").innerHTML = "";
+        }
+    }
+
+    // --- LÓGICA DE PROCESAMIENTO ---
+    function procesarGuardado() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const serial = ultimoQrEscaneado || document.getElementById("serialTexto").value.trim();
+        const cantFinal = parseInt(document.getElementById("cantidadEditable").value) || 0;
+
+        if (serial.length < 50) return alert("Escanee un serial válido.");
+        
+        const pesoUnitario = parseFloat(serial.substring(64, 71)) || 0;
+
+        const obj = {
+            "id": Date.now(),
+            "Maquina": modo,
+            "Origen": document.getElementById("origenDato").value,
+            "Cant_Realizada": cantFinal, // Fuente de verdad: el input
+            "WorkOrder": serial.substring(0, 5).trim(),
+            "Core_Number": serial.substring(5, 18).trim(),
+            "Acero": serial.substring(41, 45).trim(),
+            "Weight_Normal": pesoUnitario,
+            "Peso_Total": (pesoUnitario * cantFinal).toFixed(2),
+            "Fecha": new Date().toLocaleString()
+        };
+
+        if (modo === "CONTAR") {
+            registrosTemporales.unshift(obj);
+        } else {
+            if(modo === "TODAS") return alert("Seleccione una Máquina.");
+            registrosPermanentes.unshift(obj);
+            localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
+        }
+        
+        ultimoQrEscaneado = "";
+        document.getElementById("serialTexto").value = "";
+        document.getElementById("cantidadEditable").value = 0;
+        actualizarVista();
+    }
+
+    // --- VISTAS Y EXPANSIÓN ---
+    function actualizarVista() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const container = document.getElementById("contenedorPrincipal");
+        container.innerHTML = "";
+        
+        const datos = (modo === "CONTAR") ? registrosTemporales : 
+                     (modo === "TODAS" ? registrosPermanentes : registrosPermanentes.filter(r => r.Maquina === modo));
+
+        if (datos.length === 0) { container.innerHTML = "<p style='text-align:center;color:gray;'>Vacío</p>"; return; }
+
+        if (modo === "CONTAR") {
+            const totalLbs = datos.reduce((a, b) => a + parseFloat(b.Peso_Total), 0).toFixed(2);
+            container.innerHTML = `<div class="weight-card-top"><label>PESO TOTAL</label><span>${totalLbs} Lbs</span></div>`;
+        }
+
+        const grupos = datos.reduce((acc, r) => {
+            const key = (modo === "CONTAR") ? r.WorkOrder : r.Maquina;
+            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
+            acc[key].pzs += r.Cant_Realizada; acc[key].peso += parseFloat(r.Peso_Total);
+            acc[key].items.push(r);
+            return acc;
+        }, {});
+
+        Object.keys(grupos).forEach(titulo => {
+            const safeId = "group-" + titulo.replace(/\s+/g, '-');
+            const data = grupos[titulo];
+            const item = document.createElement("div");
+            item.className = "inv-item";
+            item.id = safeId;
+
+            const itemsHtml = data.items.map(r => `
+                <div class="detail-row">
+                    <div class="detail-line"><b>WO: ${r.WorkOrder}</b> <b>${r.Cant_Realizada} pz</b></div>
+                    <div class="detail-line" style="font-size:0.75rem; color:#666;">
+                        <span>Core: ${r.Core_Number} </span>
+                        <span>${r.Peso_Total} lbs</span>
+                    </div>
+                    <button class="btn-delete-row" onclick="event.stopPropagation(); borrarRegistro(${r.id})">✕</button>
+                </div>
+            `).join('');
+
+            item.innerHTML = `
+                <div class="inv-header" onclick="document.getElementById('${safeId}').classList.toggle('open')">
+                    <div><span style="font-weight:bold;">${modo === "CONTAR" ? 'WO: ' : ''}${titulo}</span><div style="font-size:0.75rem;">${data.pzs} pzs totales</div></div>
+                    <span class="badge-total" style="background:${modo === "CONTAR" ? 'var(--warning)' : 'var(--primary)'}">${data.peso.toFixed(2)} lbs</span>
+                </div>
+                <div class="inv-details">${itemsHtml}</div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    // --- EXCEL (FORMATO TABLA DESDE FILA 4) ---
+    function descargarExcelFormatoImagen() {
+        if (registrosPermanentes.length === 0) return alert("Sin datos.");
+
+        let ws_data = [
+            ["REPORTE DE PRODUCCION SUMWIC", "", "", "", "", "", ""], // Fila 1
+            ["", "", "", "", "", "FECHA:", new Date().toLocaleDateString()], // Fila 2
+            [] // Fila 3 vacía
+        ];
+        let merges = [{ s: {r:0, c:0}, e: {r:0, c:6} }];
+
+        ["Máquina 6", "Máquina 7", "Máquina 8"].forEach(m => {
+            const filtrados = registrosPermanentes.filter(r => r.Maquina === m);
+            if(filtrados.length > 0) {
+                ws_data.push([m.replace("Máquina ", "M"), "", "", "", "", "", ""]);
+                let rowM = ws_data.length - 1;
+                merges.push({ s: {r:rowM, c:0}, e: {r:rowM, c:6} });
+
+                ws_data.push(["DESTINO", "No. PARTE", "W.O.", "ACERO", "CANT.", "PESO", "PESO TOTAL"]);
+                let tPz = 0, tW = 0;
+                filtrados.forEach(r => {
+                    tPz += r.Cant_Realizada; tW += parseFloat(r.Peso_Total);
+                    ws_data.push([r.Origen, "0000-"+r.Core_Number, r.WorkOrder, r.Acero, r.Cant_Realizada, r.Weight_Normal, r.Peso_Total]);
+                });
+                ws_data.push(["", "", "TOTAL PZ", tPz, "TOTAL", tW.toFixed(2), ""]);
+                ws_data.push([]);
+            }
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        ws['!merges'] = merges;
+
+        const border = { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} };
+        for (let c in ws) {
+            if (c[0] === '!') continue;
+            const rNum = parseInt(c.replace(/\D/g, ""));
+            if (rNum === 1) { ws[c].s = { font:{bold:true, sz:14}, alignment:{horizontal:"center"} }; }
+            if (rNum >= 4 && ws[c].v !== undefined) {
+                ws[c].s = { border: border, alignment: {horizontal:"center"}, font: {sz:10} };
+                if (["M6","M7","M8","DESTINO","TOTAL PZ","TOTAL"].includes(ws[c].v)) {
+                    ws[c].s.font.bold = true; ws[c].s.fill = { fgColor:{rgb:"E5E7EB"} };
+                }
+            }
+        }
+        ws['!cols'] = [{wch:12},{wch:20},{wch:10},{wch:10},{wch:8},{wch:10},{wch:12}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Produccion");
+        XLSX.writeFile(wb, `Reporte_SUMWIC_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function borrarRegistro(id) {
+        registrosPermanentes = registrosPermanentes.filter(r => r.id !== id);
+        registrosTemporales = registrosTemporales.filter(r => r.id !== id);
+        localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
+        actualizarVista();
+    }
+
+    function toggleManual() {
+        const area = document.getElementById("inputManualArea");
+        area.style.display = area.style.display === "none" ? "block" : "none";
+    }
+
+    function mostrarFeedback() {
+        const st = document.getElementById("statusScan");
+        st.style.display = "block";
+        setTimeout(() => { st.style.display = "none"; }, 2000);
+    }
+</script>
 </body>
 </html>
