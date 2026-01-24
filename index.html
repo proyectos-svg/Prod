@@ -262,9 +262,9 @@
                 let tPz = 0, tW = 0;
                 filtrados.forEach(r => {
                     tPz += r.Cant_Realizada; tW += parseFloat(r.Peso_Total);
-                    ws_data.push([r.Origen, "0000-"+r.Core_Number, r.WorkOrder, r.Acero, r.Cant_Realizada, r.Weight_Normal, r.Peso_Total]);
+                    ws_data.push([r.Origen, "r.Core_Number, r.WorkOrder, r.Acero, r.Cant_Realizada, r.Weight_Normal, r.Peso_Total]);
                 });
-                ws_data.push(["", "", "TOTAL PZ", tPz, "TOTAL", tW.toFixed(2), ""]);
+                ws_data.push(["", "", "", "TOTAL PZ", tPz, "TOTAL", tW.toFixed(2), ""]);
                 ws_data.push([]);
             }
         });
