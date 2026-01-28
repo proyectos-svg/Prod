@@ -1,30 +1,46 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="list.png">
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('PWA Error', err));
+      }
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inventario Coil Pro</title>
+    <title>Producción SUMWIC</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     
     <style>
         :root {
             --primary: #2563eb; --bg: #f3f4f6; --card: #ffffff;
-            --text: #1f2937; --danger: #ef4444; --success: #218838;
+            --text: #1f2937; --save: #e91e63; --success: #218838; --warning: #f59e0b; --danger: #dc2626;
         }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         .app-card { background: white; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 15px; box-sizing: border-box; }
-        
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .page { display: none; width: 100%; }
-        .page.active { display: block; }
-
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .field { margin-bottom: 12px; }
         label { display: block; font-size: 0.7rem; font-weight: 800; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
         select, input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; box-sizing: border-box; background: white; }
-
-        .btn-main { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-config { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
-        .btn-delete-small { background: #fee2e2; color: #dc2626; border: none; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btns-main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { padding: 14px; border: none; border-radius: 10px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-cam { background: var(--primary); }
+        .btn-manual { background: #6b7280; }
+        
+        .save-bar-compact { 
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; 
+            background: #fff9c4; padding: 15px; border-radius: 10px; border: 2px solid #fbc02d; margin-bottom: 15px; align-items: end; 
+        }
+        .btn-save { background: var(--save); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 48px; }
 
         .inv-item { background: var(--card); border-radius: 12px; margin-bottom: 8px; border: 1px solid #e5e7eb; overflow: hidden; }
         .inv-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -35,269 +51,285 @@
         .detail-line { display: flex; justify-content: space-between; align-items: center; }
         .btn-delete-row { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #fee2e2; color: #dc2626; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; }
         .badge-total { color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .scan-status { font-size: 11px; color: var(--success); font-weight: bold; text-align: center; margin-bottom: 8px; display: none; }
         
-        .config-section { background:#f8fafc; padding:15px; border-radius:10px; margin-bottom:15px; border: 1px solid #e2e8f0; }
-        .list-item-conf { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+        .check-container { display: flex; align-items: center; gap: 10px; background: #eee; padding: 10px; border-radius: 10px; margin-top: 5px; }
+        .check-container input { width: 20px; height: 20px; }
+
+        .footer-actions { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; }
+        .btn-vaciar-todo { background: #fef2f2; color: var(--danger); border: 1px solid #fee2e2; padding: 12px 20px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
+        .btn-vaciar-todo:active { background: #fee2e2; }
     </style>
 </head>
 <body>
 
 <div class="app-card">
-    <div id="page-main" class="page active">
-        <header>
-            <h2 style="margin:0; font-size: 1.1rem;">📦 Inventario Coil</h2>
-            <button class="btn-config" onclick="showPage('page-config')">⚙️</button>
-        </header>
+    <header>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="list.png" alt="Logo" style="width: 30px; height: 30px; border-radius: 6px;">
+            <h2 style="margin:0; font-size: 1.1rem;">Producción SUMWIC</h2>
+        </div>
+        <button onclick="descargarExcelFormatoImagen()" style="background:var(--success); color:white; border:none; padding:8px 15px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;">EXCEL</button>
+    </header>
 
+    <div class="config-grid">
         <div class="field">
-            <label>Calibre (Ancho)</label>
-            <select id="main-calibre" onchange="updatePreview()"></select>
+            <label>Máquina / Modo</label>
+            <select id="filtroMaquina" onchange="actualizarVista()">
+                <option value="TODAS">Historial</option>
+                <option value="CONTAR">📊 MODO PESO</option>
+                <option value="Máquina 6">Máquina 6</option>
+                <option value="Máquina 7">Máquina 7</option>
+                <option value="Máquina 8">Máquina 8</option>
+            </select>
         </div>
         <div class="field">
-            <label>Familia</label>
-            <select id="main-familia" onchange="updatePreview()"></select>
+            <label>Origen</label>
+            <select id="origenDato">
+                <option value="México">México</option>
+                <option value="Importación">Importación</option>
+            </select>
         </div>
-        <div id="preview" style="background:#eef2ff; padding:10px; border-radius:8px; margin-bottom:10px; font-family:monospace; font-size:0.8rem; text-align:center; font-weight:bold; color: var(--primary);"> - </div>
-        <div class="field">
-            <label>Cantidad (Lbs)</label>
-            <input type="number" id="main-qty" placeholder="0.00" inputmode="decimal">
-        </div>
-        <button class="btn-main" onclick="agregar()">REGISTRAR MATERIAL</button>
-
-        <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
-        
-        <div id="contenedorPrincipal"></div>
-
-        <button class="btn-main" onclick="limpiarTodo()" style="background:none; color:var(--danger); border:1px solid var(--danger); margin-top:20px; font-size:0.8rem; opacity:0.7;">🗑️ VACIAR TODO EL INVENTARIO</button>
     </div>
 
-    <div id="page-config" class="page">
-        <header>
-            <button class="btn-config" onclick="showPage('page-main')">⬅️</button>
-            <h2 style="margin:0; font-size: 1.1rem;">Ajustes</h2>
-        </header>
+    <div class="btns-main">
+        <button class="btn btn-cam" onclick="toggleCamara()">📷 CÁMARA</button>
+        <button class="btn btn-manual" onclick="toggleManual()">✏️ MANUAL</button>
+    </div>
 
-        <div class="config-section">
-            <label>Calibres (Ancho)</label>
-            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <input type="number" step="0.001" id="new-cal" placeholder="Ej: 13.400">
-                <button onclick="addCalibre()" style="padding:10px; border-radius:8px; border:none; background:var(--primary); color:white; width:50px;">+</button>
-            </div>
-            <div id="list-calibres"></div>
+    <div id="inputManualArea" style="display:none; margin-bottom:15px;">
+        <input type="text" id="serialTexto" placeholder="Pegue serial..." oninput="manejarEntradaManual(this.value)">
+        <div class="check-container">
+            <input type="checkbox" id="checkParcial">
+            <label style="margin:0; font-size:0.9rem;">Parcial</label>
         </div>
+    </div>
 
-        <div class="config-section">
-            <label>Familias</label>
-            <input type="text" id="new-fam-name" placeholder="Nombre (B23Q090)" style="margin-bottom:8px;">
-            <input type="number" id="new-fam-thick" step="0.0001" placeholder="Thickness (0.0091)" style="margin-bottom:8px;">
-            <button class="btn-main" onclick="addFamilia()" style="margin-top:0;">+ GUARDAR FAMILIA</button>
-            <div id="list-familias" style="margin-top:10px;"></div>
+    <div id="reader"></div>
+    <div id="statusScan" class="scan-status">✅ DATOS PRECARGADOS</div>
+
+    <div class="save-bar-compact">
+        <div class="field" style="margin-bottom:0">
+            <label>Cant. a Registrar</label>
+            <input type="number" id="cantidadEditable" value="0">
         </div>
+        <button id="btnGuardar" class="btn-save" onclick="procesarGuardado()">💾 GUARDAR</button>
+    </div>
 
-        <button class="btn-main" onclick="descargarExcel()" style="background:var(--success)">📊 EXPORTAR EXCEL</button>
+    <div id="contenedorPrincipal"></div>
+
+    <div id="footerActions" class="footer-actions" style="display: none;">
+        <button class="btn-vaciar-todo" onclick="vaciarRegistroCompleto()">
+            🗑️ VACIAR LISTA COMPLETA
+        </button>
     </div>
 </div>
 
 <script>
-    let config = JSON.parse(localStorage.getItem('coil_conf_v3')) || { calibres: ['13.400'], familias: [{n:'B23Q090', t:0.0091}] };
-    let inventory = JSON.parse(localStorage.getItem('coil_data_v3')) || [];
+    let registrosPermanentes = [];
+    let registrosTemporales = [];
+    let ultimoQrEscaneado = "";
+    let html5QrScanner = null;
+    let cantRequeridaGlobal = 0;
 
-    function showPage(id) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        render();
-    }
+    window.onload = () => {
+        const memoria = localStorage.getItem('datos_prod_v6');
+        if (memoria) registrosPermanentes = JSON.parse(memoria);
+        actualizarVista();
+    };
 
-    function updatePreview() {
-        const c = document.getElementById('main-calibre').value;
-        const fName = document.getElementById('main-familia').value;
-        const fObj = config.familias.find(fam => fam.n === fName);
-        document.getElementById('preview').innerText = (fObj && c) ? `${fObj.t} x ${c} x COIL` : '-';
-    }
-
-    function addCalibre() {
-        const val = document.getElementById('new-cal').value.trim();
-        if(val && !config.calibres.includes(val)) { 
-            config.calibres.push(val); 
-            document.getElementById('new-cal').value = ''; 
-            saveConfig(); 
+    function manejarEntradaManual(val) {
+        if (val.length >= 50) {
+            ultimoQrEscaneado = val;
+            cantRequeridaGlobal = parseInt(val.substring(47, 50)) || 0;
+            document.getElementById("cantidadEditable").value = cantRequeridaGlobal;
+            mostrarFeedback();
         }
     }
 
-    function removeCalibre(index) {
-        if(confirm("¿Eliminar calibre?")) {
-            config.calibres.splice(index, 1);
-            saveConfig();
+    async function toggleCamara() {
+        if (!html5QrScanner) {
+            html5QrScanner = new Html5Qrcode("reader");
+            await html5QrScanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => { 
+                ultimoQrEscaneado = text;
+                cantRequeridaGlobal = parseInt(text.substring(47, 50)) || 0;
+                document.getElementById("cantidadEditable").value = cantRequeridaGlobal;
+                mostrarFeedback();
+                setTimeout(() => { if(html5QrScanner) toggleCamara(); }, 500);
+            });
+        } else {
+            await html5QrScanner.stop(); html5QrScanner = null;
+            document.getElementById("reader").innerHTML = "";
         }
     }
 
-    function addFamilia() {
-        const name = document.getElementById('new-fam-name').value.trim().toUpperCase();
-        const thick = parseFloat(document.getElementById('new-fam-thick').value);
-        if(name && !isNaN(thick)) { 
-            config.familias.push({ n: name, t: thick }); 
-            document.getElementById('new-fam-name').value = '';
-            document.getElementById('new-fam-thick').value = '';
-            saveConfig(); 
+    function procesarGuardado() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const serial = ultimoQrEscaneado || document.getElementById("serialTexto").value.trim();
+        const cantRealizada = parseInt(document.getElementById("cantidadEditable").value) || 0;
+        const esParcial = document.getElementById("checkParcial").checked;
+
+        if (serial.length < 50) return alert("Escanee un serial válido.");
+        
+        const pesoUnitario = parseFloat(serial.substring(64, 71)) || 0;
+
+        const obj = {
+            "id": Date.now(),
+            "Maquina": modo,
+            "Origen": document.getElementById("origenDato").value,
+            "Cant_Realizada": cantRealizada,
+            "Cant_Requerida": cantRequeridaGlobal,
+            "Estado": esParcial ? "parcial" : "terminada",
+            "WorkOrder": serial.substring(0, 5).trim(),
+            "Core_Number": serial.substring(5, 18).trim(),
+            "Acero": serial.substring(41, 45).trim(),
+            "Weight_Normal": pesoUnitario,
+            "Peso_Total": (pesoUnitario * cantRealizada).toFixed(2),
+            "Fecha": new Date().toLocaleString()
+        };
+
+        if (modo === "CONTAR") {
+            // Guardamos al final para mantener orden cronológico natural
+            registrosTemporales.push(obj);
+        } else {
+            if(modo === "TODAS") return alert("Seleccione una Máquina.");
+            registrosPermanentes.push(obj);
+            localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
+        }
+        
+        limpiarInputs();
+        actualizarVista();
+    }
+
+    function vaciarRegistroCompleto() {
+        const modo = document.getElementById("filtroMaquina").value;
+        if (confirm("¿Seguro que quieres borrar estos registros?")) {
+            if (modo === "CONTAR") { registrosTemporales = []; } 
+            else { registrosPermanentes = []; localStorage.removeItem('datos_prod_v6'); }
+            actualizarVista();
         }
     }
 
-    function removeFamilia(index) {
-        if(confirm("¿Eliminar familia?")) {
-            config.familias.splice(index, 1);
-            saveConfig();
+    function actualizarVista() {
+        const modo = document.getElementById("filtroMaquina").value;
+        const container = document.getElementById("contenedorPrincipal");
+        const footer = document.getElementById("footerActions");
+        container.innerHTML = "";
+        
+        const datos = (modo === "CONTAR") ? registrosTemporales : 
+                     (modo === "TODAS" ? registrosPermanentes : registrosPermanentes.filter(r => r.Maquina === modo));
+
+        footer.style.display = datos.length > 0 ? "block" : "none";
+
+        if (datos.length === 0) { 
+            container.innerHTML = "<p style='text-align:center;color:gray;margin-top:20px;'>No hay registros</p>"; 
+            return; 
         }
+
+        const grupos = datos.reduce((acc, r) => {
+            const key = (modo === "CONTAR") ? r.Acero : r.Maquina;
+            if (!acc[key]) acc[key] = { pzs: 0, peso: 0, items: [] };
+            acc[key].pzs += r.Cant_Realizada; 
+            acc[key].peso += parseFloat(r.Peso_Total);
+            acc[key].items.push(r);
+            return acc;
+        }, {});
+
+        Object.keys(grupos).forEach(titulo => {
+            const safeId = "group-" + titulo.replace(/\s+/g, '-');
+            const data = grupos[titulo];
+            const item = document.createElement("div");
+            item.className = "inv-item";
+            item.id = safeId;
+
+            const itemsHtml = data.items.map(r => `
+                <div class="detail-row">
+                    <div class="detail-line">
+                        <b>WO: ${r.WorkOrder}</b> 
+                        <span style="color:var(--primary); font-weight:bold;">${r.Cant_Realizada} pz</span>
+                    </div>
+                    <div class="detail-line" style="font-size:0.75rem; color:#666;">
+                        <span>Core: ${r.Core_Number}</span>
+                        <span>${r.Peso_Total} lbs</span>
+                    </div>
+                    <button class="btn-delete-row" onclick="event.stopPropagation(); borrarRegistro(${r.id})">✕</button>
+                </div>
+            `).join('');
+
+            item.innerHTML = `
+                <div class="inv-header" onclick="document.getElementById('${safeId}').classList.toggle('open')">
+                    <div>
+                        <span style="font-weight:bold;">${modo === "CONTAR" ? 'ACERO: ' : ''}${titulo}</span>
+                        <div style="font-size:0.75rem;">${data.pzs} pzs en total</div>
+                    </div>
+                    <span class="badge-total" style="background:${modo === "CONTAR" ? 'var(--warning)' : 'var(--primary)'}">${data.peso.toFixed(2)} lbs</span>
+                </div>
+                <div class="inv-details">${itemsHtml}</div>
+            `;
+            container.appendChild(item);
+        });
     }
 
-    function saveConfig() { 
-        config.calibres.sort((a, b) => parseFloat(b) - parseFloat(a));
-        localStorage.setItem('coil_conf_v3', JSON.stringify(config)); 
-        render(); 
-    }
+    function descargarExcelFormatoImagen() {
+        if (registrosPermanentes.length === 0) return alert("Sin datos.");
+        
+        // Ya están ordenados cronológicamente por el uso de .push()
+        let ws_data = [["REPORTE DE PRODUCCION SUMWIC", "", "", "", "", "", "", ""], ["", "", "", "", "", "", "FECHA:", new Date().toLocaleDateString()], []];
+        let merges = [{ s: {r:0, c:0}, e: {r:0, c:7} }];
 
-    function agregar() {
-        const c = document.getElementById('main-calibre').value;
-        const f = document.getElementById('main-familia').value;
-        const q = parseFloat(document.getElementById('main-qty').value);
-        const famObj = config.familias.find(fam => fam.n === f);
-        if(!c || !f || isNaN(q)) return alert("Datos incompletos");
+        ["Máquina 6", "Máquina 7", "Máquina 8"].forEach(m => {
+            const filtrados = registrosPermanentes.filter(r => r.Maquina === m);
+            if(filtrados.length > 0) {
+                ws_data.push([m.replace("Máquina ", "M"), "", "", "", "", "", "", ""]);
+                let rowM = ws_data.length - 1;
+                merges.push({ s: {r:rowM, c:0}, e: {r:rowM, c:7} });
+                ws_data.push(["DESTINO", "No. PARTE", "W.O.", "ACERO", "CANT.", "PESO", "PESO TOTAL", "TERMINADA"]);
+                let tPz = 0, tW = 0;
+                filtrados.forEach(r => {
+                    tPz += r.Cant_Realizada; tW += parseFloat(r.Peso_Total);
+                    const cantDisplay = r.Estado === "parcial" ? `${r.Cant_Realizada}/${r.Cant_Requerida}` : r.Cant_Realizada;
+                    ws_data.push([r.Origen, r.Core_Number, r.WorkOrder, r.Acero, cantDisplay, r.Weight_Normal, r.Peso_Total, r.Estado]);
+                });
+                ws_data.push(["", "", "", "TOTAL PZ", tPz, "TOTAL", tW.toFixed(2), ""]);
+                ws_data.push([]);
+            }
+        });
 
-        inventory.unshift({ id: Date.now(), calibre: c, familia: f, tag: `${famObj.t} x ${c} x COIL`, qty: q });
-        localStorage.setItem('coil_data_v3', JSON.stringify(inventory));
-        document.getElementById('main-qty').value = "";
-        render();
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        ws['!merges'] = merges;
+        const border = { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} };
+        for (let c in ws) { if (c[0] === '!') continue; const rNum = parseInt(c.replace(/\D/g, "")); if (rNum === 1) { ws[c].s = { font:{bold:true, sz:14}, alignment:{horizontal:"center"} }; } if (rNum >= 4 && ws[c].v !== undefined) { ws[c].s = { border: border, alignment: {horizontal:"center"}, font: {sz:10} }; if (["M6","M7","M8","DESTINO","TOTAL PZ","TOTAL"].includes(ws[c].v)) { ws[c].s.font.bold = true; ws[c].s.fill = { fgColor:{rgb:"E5E7EB"} }; } } }
+        ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:10},{wch:12},{wch:10},{wch:12},{wch:12}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Produccion");
+        XLSX.writeFile(wb, `Reporte_SUMWIC_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
     function borrarRegistro(id) {
-        if(confirm("¿Eliminar este registro?")) { 
-            inventory = inventory.filter(i => i.id !== id); 
-            localStorage.setItem('coil_data_v3', JSON.stringify(inventory)); 
-            render(); 
-        }
+        registrosPermanentes = registrosPermanentes.filter(r => r.id !== id);
+        registrosTemporales = registrosTemporales.filter(r => r.id !== id);
+        localStorage.setItem('datos_prod_v6', JSON.stringify(registrosPermanentes));
+        actualizarVista();
     }
 
-    function limpiarTodo() {
-        if(confirm("⚠️ ¿ESTÁS SEGURO? Se borrará TODO el inventario acumulado.")) { 
-            inventory = []; 
-            localStorage.setItem('coil_data_v3', JSON.stringify(inventory)); 
-            render(); 
-        }
+    function toggleManual() {
+        const area = document.getElementById("inputManualArea");
+        area.style.display = area.style.display === "none" ? "block" : "none";
     }
 
-    function render() {
-        const calibresOrdenados = [...config.calibres].sort((a, b) => parseFloat(b) - parseFloat(a));
-        document.getElementById('main-calibre').innerHTML = calibresOrdenados.map(c => `<option value="${c}">${c}</option>`).join('');
-        document.getElementById('main-familia').innerHTML = config.familias.map(f => `<option value="${f.n}">${f.n}</option>`).join('');
-        updatePreview();
-
-        document.getElementById('list-calibres').innerHTML = calibresOrdenados.map((c, i) => `
-            <div class="list-item-conf">
-                <span>${c}</span>
-                <button class="btn-delete-small" onclick="removeCalibre(${config.calibres.indexOf(c)})">✕</button>
-            </div>`).join('');
-
-        document.getElementById('list-familias').innerHTML = config.familias.map((f, i) => `
-            <div class="list-item-conf">
-                <span><b>${f.n}</b> (${f.t})</span>
-                <button class="btn-delete-small" onclick="removeFamilia(${i})">✕</button>
-            </div>`).join('');
-
-        const container = document.getElementById('contenedorPrincipal');
-        container.innerHTML = "";
-
-        const grupos = inventory.reduce((acc, r) => {
-            if (!acc[r.calibre]) acc[r.calibre] = { peso: 0, items: [] };
-            acc[r.calibre].peso += r.qty;
-            acc[r.calibre].items.push(r);
-            return acc;
-        }, {});
-
-        Object.keys(grupos)
-            .sort((a, b) => parseFloat(b) - parseFloat(a))
-            .forEach(cal => {
-                const safeId = "group-" + cal.toString().replace(/\./g, '-');
-                const data = grupos[cal];
-                const div = document.createElement("div");
-                div.className = "inv-item";
-                div.id = safeId;
-                div.innerHTML = `
-                    <div class="inv-header" onclick="document.getElementById('${safeId}').classList.toggle('open')">
-                        <div><b>Ancho: ${cal}</b><div style="font-size:0.75rem;">${data.items.length} items</div></div>
-                        <span class="badge-total" style="background:var(--primary)">${data.peso.toFixed(2)} lbs</span>
-                    </div>
-                    <div class="inv-details">${data.items.map(r => `
-                        <div class="detail-row">
-                            <div class="detail-line"><b>${r.familia}</b> <b>${r.qty.toFixed(2)} lbs</b></div>
-                            <div class="detail-line" style="font-size:0.7rem; color:#666;">${r.tag}</div>
-                            <button class="btn-delete-row" onclick="event.stopPropagation(); borrarRegistro(${r.id})">✕</button>
-                        </div>`).join('')}</div>`;
-                container.appendChild(div);
-            });
+    function limpiarInputs() {
+        ultimoQrEscaneado = "";
+        document.getElementById("serialTexto").value = "";
+        document.getElementById("cantidadEditable").value = 0;
+        document.getElementById("checkParcial").checked = false;
     }
 
-    // --- NUEVA FUNCIÓN DE EXPORTACIÓN CON AGRUPACIÓN POR DESCRIPCIÓN ---
-    function descargarExcel() {
-        if (inventory.length === 0) return alert("Sin datos.");
-
-        // 1. Agrupar por Calibre para el resumen inicial
-        const gruposCalibre = inventory.reduce((acc, r) => {
-            acc[r.calibre] = (acc[r.calibre] || 0) + r.qty;
-            return acc;
-        }, {});
-
-        // 2. Agrupar por DESCRIPCIÓN (Tag) para el detalle sumado
-        const gruposEtiqueta = inventory.reduce((acc, r) => {
-            if (!acc[r.tag]) {
-                acc[r.tag] = { calibre: r.calibre, qty: 0 };
-            }
-            acc[r.tag].qty += r.qty;
-            return acc;
-        }, {});
-
-        let ws_data = [
-            ["REPORTE DE PRODUCCIÓN - INVENTARIO COIL", "", ""],
-            ["", "FECHA:", new Date().toLocaleDateString()],
-            [],
-            ["RESUMEN TOTAL POR ACERO", "", ""],
-            ["CALIBRE", "TOTAL ACERO (LBS)", ""]
-        ];
-
-        // Añadir resumen
-        Object.keys(gruposCalibre).sort((a,b)=>b-a).forEach(cal => {
-            ws_data.push([cal, gruposCalibre[cal].toFixed(2), ""]);
-        });
-
-        ws_data.push([], ["DETALLE AGRUPADO POR ETIQUETA", "", ""], ["CALIBRE", "ETIQUETA (DESCRIPCIÓN)", "CANTIDAD SUMADA (LBS)"]);
-        
-        // Añadir detalle agrupado
-        Object.keys(gruposEtiqueta)
-            .sort((a, b) => parseFloat(gruposEtiqueta[b].calibre) - parseFloat(gruposEtiqueta[a].calibre))
-            .forEach(tag => {
-                ws_data.push([
-                    gruposEtiqueta[tag].calibre, 
-                    tag, 
-                    gruposEtiqueta[tag].qty.toFixed(2)
-                ]);
-            });
-
-        const ws = XLSX.utils.aoa_to_sheet(ws_data);
-        ws['!merges'] = [{ s: {r:0, c:0}, e: {r:0, c:2} }];
-        const border = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
-        
-        for (let c in ws) {
-            if (c[0] === '!') continue;
-            ws[c].s = { alignment:{horizontal:"center"}, font:{sz:10}, border: border };
-            if (["CALIBRE", "TOTAL ACERO (LBS)", "ETIQUETA (DESCRIPCIÓN)", "CANTIDAD SUMADA (LBS)"].includes(ws[c].v)) {
-                ws[c].s.font.bold = true; ws[c].s.fill = { fgColor:{rgb:"E5E7EB"} };
-            }
-        }
-        ws['!cols'] = [{wch:15}, {wch:35}, {wch:20}];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-        XLSX.writeFile(wb, `Reporte_Coil_Agrupado_${new Date().toISOString().slice(0,10)}.xlsx`);
+    function mostrarFeedback() {
+        const st = document.getElementById("statusScan");
+        st.style.display = "block";
+        setTimeout(() => { st.style.display = "none"; }, 2000);
     }
-
-    window.onload = render;
 </script>
 </body>
 </html>
