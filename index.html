@@ -203,7 +203,11 @@
     function vaciarRegistroCompleto() {
         if (!confirm("¿Borrar todo el registro de este modo?")) return;
         const modo = document.getElementById("filtroMaquina").value;
-        if (modo === "CONTAR") registrosTemporales = []; else registrosPermanentes = [];
+        if (modo === "CONTAR") {
+            registrosTemporales = [];
+        } else {
+            registrosPermanentes = registrosPermanentes.filter(r => r.Maquina !== modo);
+        }
         guardarDatos();
         actualizarVista();
     }
@@ -227,8 +231,98 @@
     }
 
     function descargarExcelFormatoImagen() {
-        // Lógica de exportación existente...
-        alert("Función de exportación lista.");
+        const todosLosRegistros = [...registrosPermanentes, ...registrosTemporales];
+
+        if (todosLosRegistros.length === 0) {
+            return alert("No hay datos guardados para exportar.");
+        }
+
+        const headers = [
+            "Work Order", "Core Number", "Máquina / Modo", "Origen",
+            "Acero", "Cant. Requerida", "Cant. Realizada",
+            "Peso Unit. (lbs)", "Peso Total (lbs)", "Estado", "Fecha"
+        ];
+
+        let totalPiezas = 0;
+        let totalPesoLbs = 0;
+
+        const dataRows = todosLosRegistros.map(r => {
+            const cantPzs = Number(r.Cant_Realizada) || 0;
+            const pesoTot = Number(r.Peso_Total) || 0;
+
+            totalPiezas += cantPzs;
+            totalPesoLbs += pesoTot;
+
+            return [
+                r.WorkOrder || "",
+                r.Core_Number || "",
+                r.Maquina || "",
+                r.Origen || "",
+                r.Acero || "",
+                Number(r.Cant_Requerida) || 0,
+                cantPzs,
+                Number(r.Weight_Normal) || 0,
+                pesoTot,
+                (r.Estado || "").toUpperCase(),
+                r.Fecha || ""
+            ];
+        });
+
+        // Fila de Totales
+        const totalRow = [
+            "TOTALES", "", "", "", "", "",
+            totalPiezas,
+            "",
+            Number(totalPesoLbs.toFixed(2)),
+            "", ""
+        ];
+
+        const fullMatrix = [headers, ...dataRows, totalRow];
+        const ws = XLSX.utils.aoa_to_sheet(fullMatrix);
+
+        // Estilos
+        const headerStyle = {
+            fill: { fgColor: { rgb: "2563EB" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true },
+            alignment: { horizontal: "center", vertical: "center" }
+        };
+
+        const totalStyle = {
+            fill: { fgColor: { rgb: "FEF3C7" } },
+            font: { bold: true },
+            alignment: { horizontal: "right" }
+        };
+
+        const range = XLSX.utils.decode_range(ws['!ref']);
+
+        // Aplicar estilo a Encabezados
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddr = XLSX.utils.encode_cell({ r: 0, c: C });
+            if (ws[cellAddr]) ws[cellAddr].s = headerStyle;
+        }
+
+        // Aplicar estilo a la Fila de Totales
+        const lastRowIndex = range.e.r;
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddr = XLSX.utils.encode_cell({ r: lastRowIndex, c: C });
+            if (ws[cellAddr]) ws[cellAddr].s = totalStyle;
+        }
+
+        // Ancho automático por columna
+        ws['!cols'] = headers.map((h, colIdx) => {
+            let maxLen = h.length;
+            fullMatrix.forEach(row => {
+                const val = row[colIdx] !== null && row[colIdx] !== undefined ? row[colIdx].toString() : "";
+                if (val.length > maxLen) maxLen = val.length;
+            });
+            return { wch: Math.min(maxLen + 3, 30) };
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte Producción");
+
+        const hoy = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `Produccion_SUMWIC_${hoy}.xlsx`);
     }
 </script>
 </body>
