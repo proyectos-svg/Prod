@@ -203,11 +203,7 @@
     function vaciarRegistroCompleto() {
         if (!confirm("¿Borrar todo el registro de este modo?")) return;
         const modo = document.getElementById("filtroMaquina").value;
-        if (modo === "CONTAR") {
-            registrosTemporales = [];
-        } else {
-            registrosPermanentes = registrosPermanentes.filter(r => r.Maquina !== modo);
-        }
+        if (modo === "CONTAR") registrosTemporales = []; else registrosPermanentes = [];
         guardarDatos();
         actualizarVista();
     }
@@ -234,95 +230,78 @@
         const todosLosRegistros = [...registrosPermanentes, ...registrosTemporales];
 
         if (todosLosRegistros.length === 0) {
-            return alert("No hay datos guardados para exportar.");
+            return alert("No hay datos registrados para exportar.");
         }
 
-        const headers = [
-            "Work Order", "Core Number", "Máquina / Modo", "Origen",
-            "Acero", "Cant. Requerida", "Cant. Realizada",
-            "Peso Unit. (lbs)", "Peso Total (lbs)", "Estado", "Fecha"
-        ];
-
+        // Crear la tabla HTML estructurada en memoria
+        const tabla = document.createElement("table");
+        
         let totalPiezas = 0;
-        let totalPesoLbs = 0;
+        let totalPeso = 0;
 
-        const dataRows = todosLosRegistros.map(r => {
+        let html = `
+            <thead>
+                <tr style="background-color: #2563eb; color: #ffffff; font-weight: bold; text-align: center;">
+                    <th>Work Order</th>
+                    <th>Core Number</th>
+                    <th>Máquina / Modo</th>
+                    <th>Origen</th>
+                    <th>Acero</th>
+                    <th>Cant. Requerida</th>
+                    <th>Cant. Realizada</th>
+                    <th>Peso Unit. (lbs)</th>
+                    <th>Peso Total (lbs)</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        todosLosRegistros.forEach(r => {
             const cantPzs = Number(r.Cant_Realizada) || 0;
             const pesoTot = Number(r.Peso_Total) || 0;
 
             totalPiezas += cantPzs;
-            totalPesoLbs += pesoTot;
+            totalPeso += pesoTot;
 
-            return [
-                r.WorkOrder || "",
-                r.Core_Number || "",
-                r.Maquina || "",
-                r.Origen || "",
-                r.Acero || "",
-                Number(r.Cant_Requerida) || 0,
-                cantPzs,
-                Number(r.Weight_Normal) || 0,
-                pesoTot,
-                (r.Estado || "").toUpperCase(),
-                r.Fecha || ""
-            ];
+            html += `
+                <tr>
+                    <td style="text-align: center;">${r.WorkOrder || ''}</td>
+                    <td style="text-align: center;">${r.Core_Number || ''}</td>
+                    <td style="text-align: center;">${r.Maquina || ''}</td>
+                    <td style="text-align: center;">${r.Origen || ''}</td>
+                    <td style="text-align: center;">${r.Acero || ''}</td>
+                    <td style="text-align: right;">${r.Cant_Requerida || 0}</td>
+                    <td style="text-align: right;">${cantPzs}</td>
+                    <td style="text-align: right;">${r.Weight_Normal || 0}</td>
+                    <td style="text-align: right;">${pesoTot.toFixed(2)}</td>
+                    <td style="text-align: center;">${(r.Estado || '').toUpperCase()}</td>
+                    <td style="text-align: center;">${r.Fecha || ''}</td>
+                </tr>
+            `;
         });
 
-        // Fila de Totales
-        const totalRow = [
-            "TOTALES", "", "", "", "", "",
-            totalPiezas,
-            "",
-            Number(totalPesoLbs.toFixed(2)),
-            "", ""
-        ];
+        html += `
+            <tr style="background-color: #fef3c7; font-weight: bold;">
+                <td colspan="6" style="text-align: right;">TOTALES:</td>
+                <td style="text-align: right;">${totalPiezas}</td>
+                <td></td>
+                <td style="text-align: right;">${totalPeso.toFixed(2)}</td>
+                <td colspan="2"></td>
+            </tr>
+            </tbody>
+        `;
 
-        const fullMatrix = [headers, ...dataRows, totalRow];
-        const ws = XLSX.utils.aoa_to_sheet(fullMatrix);
+        tabla.innerHTML = html;
 
-        // Estilos
-        const headerStyle = {
-            fill: { fgColor: { rgb: "2563EB" } },
-            font: { color: { rgb: "FFFFFF" }, bold: true },
-            alignment: { horizontal: "center", vertical: "center" }
-        };
-
-        const totalStyle = {
-            fill: { fgColor: { rgb: "FEF3C7" } },
-            font: { bold: true },
-            alignment: { horizontal: "right" }
-        };
-
-        const range = XLSX.utils.decode_range(ws['!ref']);
-
-        // Aplicar estilo a Encabezados
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellAddr = XLSX.utils.encode_cell({ r: 0, c: C });
-            if (ws[cellAddr]) ws[cellAddr].s = headerStyle;
-        }
-
-        // Aplicar estilo a la Fila de Totales
-        const lastRowIndex = range.e.r;
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellAddr = XLSX.utils.encode_cell({ r: lastRowIndex, c: C });
-            if (ws[cellAddr]) ws[cellAddr].s = totalStyle;
-        }
-
-        // Ancho automático por columna
-        ws['!cols'] = headers.map((h, colIdx) => {
-            let maxLen = h.length;
-            fullMatrix.forEach(row => {
-                const val = row[colIdx] !== null && row[colIdx] !== undefined ? row[colIdx].toString() : "";
-                if (val.length > maxLen) maxLen = val.length;
-            });
-            return { wch: Math.min(maxLen + 3, 30) };
-        });
-
+        // Convertir elemento HTML table directamente a hoja de Excel
+        const ws = XLSX.utils.table_to_sheet(tabla);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Reporte Producción");
+        XLSX.utils.book_append_sheet(wb, ws, "Produccion_SUMWIC");
 
         const hoy = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `Produccion_SUMWIC_${hoy}.xlsx`);
+        XLSX.writeFile(wb, `Reporte_Produccion_SUMWIC_${hoy}.xlsx`);
     }
 </script>
 </body>
